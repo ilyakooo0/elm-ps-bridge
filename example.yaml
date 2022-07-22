@@ -1,0 +1,7 @@
+Subscription:
+- DownloadPasswords
+- UpdatePassword:
+    foo: Int
+    id: Int
+Command:
+- Hello
