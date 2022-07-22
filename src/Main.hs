@@ -107,8 +107,13 @@ elmType name (SumDatatype (SumType sums)) = do
                     _stcFields = Anonymous $ maybeToList value
                   },
             es_omit_null = False,
-            es_unary_strings = True,
-            es_type = defSumEncoding
+            es_unary_strings = False,
+            es_type =
+              SumEncoding'
+                TaggedObject
+                  { tagFieldName = "tag",
+                    contentsFieldName = "values"
+                  }
           }
     ]
   pure $ ETyCon $ ETCon $ toString name
