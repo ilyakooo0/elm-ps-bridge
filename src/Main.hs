@@ -171,7 +171,6 @@ allInstances =
   [ PS.Encode,
     PS.Decode,
     PS.Generic,
-    PS.Newtype,
     PS.Eq,
     PS.Ord
   ]
@@ -180,7 +179,11 @@ ps :: Map Text Datatype -> Text
 ps datattypes =
   let (_, types) = runWriter $ traverse (uncurry psType) $ M.toList datattypes
    in moduleToText
-        PSS.defaultSettings
+        PSS.Settings
+          { generateLenses = False,
+            genericsGenRep = True,
+            generateForeign = Nothing
+          }
         PSModule
           { psModuleName = "Bridge",
             psImportLines = mempty,
