@@ -13,6 +13,9 @@ dependencies:
   - aeson
   - elm-bridge
   - mtl
+  - containers
+  - text
+  - unordered-containers
 
 executable:
   main: Main.hs

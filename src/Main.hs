@@ -2,10 +2,10 @@ module Main (main) where
 
 import Control.Monad.Writer.Strict
 import Data.Aeson hiding (Options)
-import Data.Aeson.Key qualified as Key
-import Data.Aeson.KeyMap qualified as KeyMap
 import Data.Aeson.Types (Parser)
+import Data.HashMap.Strict qualified as HM
 import Data.Map.Lazy qualified as M
+import Data.Text qualified as T
 import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Data.Yaml as Yaml
@@ -32,6 +32,7 @@ data Datatype
   | IntType
   | FloatType
   | StringType
+  | List Datatype
   deriving stock (Show)
 
 newtype SumType = SumType (Map Text (Maybe Datatype))
@@ -41,13 +42,14 @@ parseSumType :: Vector Value -> Parser SumType
 parseSumType = fmap (SumType . fold) . traverse parseConstructor . V.toList
   where
     parseConstructor (String s) = pure $ one (s, Nothing)
-    parseConstructor (Object o) | [(Key.toText -> k, v)] <- KeyMap.toList o = one . (k,) . Just <$> parseJSON v
+    parseConstructor (Object o) | [(k, v)] <- HM.toList o = one . (k,) . Just <$> parseJSON v
     parseConstructor (Object _) = fail "Sum types can only have one name per constructor"
     parseConstructor _ = fail "Sum Bad sum type ;("
 
 instance FromJSON Datatype where
   parseJSON (Array a) = SumDatatype <$> parseSumType a
-  parseJSON (Object o) = ProductType <$> traverse parseJSON (M.mapKeysMonotonic Key.toText $ KeyMap.toMap o)
+  parseJSON (Object o) | [("List", x)] <- HM.toList o = List <$> parseJSON x
+  parseJSON (Object o) = ProductType <$> traverse parseJSON (M.fromList $ HM.toList o)
   parseJSON (String "Bool") = pure BoolType
   parseJSON (String "Int") = pure IntType
   parseJSON (String "Float") = pure FloatType
@@ -112,7 +114,7 @@ elmType name (SumDatatype (SumType sums)) = do
               SumEncoding'
                 TaggedObject
                   { tagFieldName = "tag",
-                    contentsFieldName = "values"
+                    contentsFieldName = "contents"
                   }
           }
     ]
@@ -173,8 +175,8 @@ psType name (ProductType fields) = do
 
 allInstances :: [PS.Instance]
 allInstances =
-  [ PS.Encode,
-    PS.Decode,
+  [ PS.EncodeJson,
+    PS.DecodeJson,
     PS.Generic,
     PS.Eq,
     PS.Ord
@@ -187,6 +189,7 @@ ps datattypes =
         PSS.Settings
           { generateLenses = False,
             genericsGenRep = True,
+            generateArgonautCodecs = True,
             generateForeign = Nothing
           }
         PSModule

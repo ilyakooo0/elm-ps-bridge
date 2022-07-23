@@ -1,0 +1,74 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.34.4.
+--
+-- see: https://github.com/sol/hpack
+
+name:          elm-ps-bridge
+version:       0.0.0
+license:       MIT
+license-file:  LICENSE
+build-type:    Simple
+
+executable elm-ps-bridge
+  main-is: Main.hs
+  other-modules:
+      Elm
+      Paths_elm_ps_bridge
+  hs-source-dirs:
+      src
+  default-extensions:
+      NoImplicitPrelude
+      AllowAmbiguousTypes
+      ApplicativeDo
+      BangPatterns
+      BlockArguments
+      ConstraintKinds
+      DataKinds
+      DefaultSignatures
+      DeriveAnyClass
+      DeriveFunctor
+      DeriveGeneric
+      DerivingVia
+      DuplicateRecordFields
+      FlexibleContexts
+      FlexibleInstances
+      FunctionalDependencies
+      GADTs
+      GeneralizedNewtypeDeriving
+      ImportQualifiedPost
+      LambdaCase
+      MonoLocalBinds
+      MultiParamTypeClasses
+      NamedFieldPuns
+      OverloadedLabels
+      OverloadedStrings
+      PartialTypeSignatures
+      PolyKinds
+      RankNTypes
+      RecordWildCards
+      RecursiveDo
+      ScopedTypeVariables
+      StandaloneDeriving
+      StandaloneKindSignatures
+      TupleSections
+      TypeApplications
+      TypeFamilies
+      TypeOperators
+      UndecidableInstances
+      ViewPatterns
+  build-depends:
+      aeson
+    , base
+    , bytestring
+    , containers
+    , elm-bridge
+    , mtl
+    , optparse-generic
+    , purescript-bridge
+    , relude
+    , text
+    , unordered-containers
+    , vector
+    , yaml
+  default-language: Haskell2010

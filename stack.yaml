@@ -1,4 +1,8 @@
-resolver: lts-19.16
+resolver: lts-18.28
 
 packages:
 - .
+
+extra-deps:
+- git: https://github.com/eskimor/purescript-bridge.git
+  commit: a65fd634730adc81eebf09f1e490342dda4cacb2
