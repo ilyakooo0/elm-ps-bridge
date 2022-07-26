@@ -2,10 +2,8 @@ module Main (main) where
 
 import Control.Monad.Writer.Strict
 import Data.Aeson hiding (Options)
-import Data.Aeson.Types (Parser)
 import Data.HashMap.Strict qualified as HM
 import Data.Map.Lazy qualified as M
-import Data.Text qualified as T
 import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Data.Yaml as Yaml
@@ -70,10 +68,25 @@ elm datattypes =
    in makeElmModuleFromETypeDef "Bridge" types
 
 elmType :: Text -> Datatype -> Writer [ETypeDef] EType
-elmType name BoolType = pure $ ETyCon $ ETCon "Bool"
-elmType name IntType = pure $ ETyCon $ ETCon "Int"
-elmType name FloatType = pure $ ETyCon $ ETCon "Float"
-elmType name StringType = pure $ ETyCon $ ETCon "String"
+elmType _ BoolType = pure $ ETyCon $ ETCon "Bool"
+elmType _ IntType = pure $ ETyCon $ ETCon "Int"
+elmType _ FloatType = pure $ ETyCon $ ETCon "Float"
+elmType _ StringType = pure $ ETyCon $ ETCon "String"
+elmType name (List inner) = do
+  -- fields' <- traverse (\(k, v) -> (toString k,) <$> elmType (name <> "_" <> k) v) $ M.toList fields
+  inner' <- elmType name inner
+  tell
+    [ ETypePrimAlias
+        EPrimAlias
+          { epa_name =
+              ETypeName
+                { et_name = toString name <> "_List",
+                  et_args = []
+                },
+            epa_type = ETyApp (ETyCon (ETCon "List")) inner'
+          }
+    ]
+  pure $ ETyCon $ ETCon $ toString name
 elmType name (ProductType fields) = do
   fields' <- traverse (\(k, v) -> (toString k,) <$> elmType (name <> "_" <> k) v) $ M.toList fields
   tell
@@ -125,6 +138,34 @@ psType _ BoolType = pure psBool
 psType _ IntType = pure psInt
 psType _ FloatType = pure psNumber
 psType _ StringType = pure psString
+psType name (List inner) = do
+  inner' <- psType name inner
+  let ti =
+        TypeInfo
+          { _typePackage = "bridge",
+            _typeModule = "Bridge",
+            _typeName = name <> "_List",
+            _typeParameters = []
+          }
+  tell
+    [ PS.SumType
+        ti
+        [ DataConstructor
+            { _sigConstructor = name <> "_List",
+              _sigValues =
+                Left
+                  [ TypeInfo
+                      { _typePackage = "builtins",
+                        _typeModule = "Prim",
+                        _typeName = "Array",
+                        _typeParameters = [inner']
+                      }
+                  ]
+            }
+        ]
+        allInstances
+    ]
+  pure ti
 psType name (SumDatatype (SumType sums)) = do
   sums' <- traverse (\(k, v) -> (k,) <$> traverse (psType (name <> "_" <> k)) v) $ M.toList sums
   let ti =

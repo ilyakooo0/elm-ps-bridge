@@ -57,6 +57,7 @@ executable elm-ps-bridge
       TypeOperators
       UndecidableInstances
       ViewPatterns
+  ghc-options: -Weverything -Wno-implicit-prelude -Wno-missing-safe-haskell-mode -Wno-safe -Wno-prepositive-qualified-module -Wno-missing-import-lists -Wno-all-missed-specialisations -Wno-missing-local-signatures -Wno-partial-fields -Wno-unsafe -Wno-monomorphism-restriction -Wno-missed-specialisations -Wno-partial-type-signatures -Wno-unticked-promoted-constructors -Wno-incomplete-uni-patterns -Wno-missing-kind-signatures -fexpose-all-unfoldings -fspecialise-aggressively -O0 -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , base
