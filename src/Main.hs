@@ -73,7 +73,6 @@ elmType _ IntType = pure $ ETyCon $ ETCon "Int"
 elmType _ FloatType = pure $ ETyCon $ ETCon "Float"
 elmType _ StringType = pure $ ETyCon $ ETCon "String"
 elmType name (List inner) = do
-  -- fields' <- traverse (\(k, v) -> (toString k,) <$> elmType (name <> "_" <> k) v) $ M.toList fields
   inner' <- elmType name inner
   tell
     [ ETypePrimAlias
@@ -86,7 +85,7 @@ elmType name (List inner) = do
             epa_type = ETyApp (ETyCon (ETCon "List")) inner'
           }
     ]
-  pure $ ETyCon $ ETCon $ toString name
+  pure $ ETyCon $ ETCon $ toString name <> "_List"
 elmType name (ProductType fields) = do
   fields' <- traverse (\(k, v) -> (toString k,) <$> elmType (name <> "_" <> k) v) $ M.toList fields
   tell
