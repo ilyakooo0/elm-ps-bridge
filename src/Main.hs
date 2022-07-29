@@ -31,6 +31,7 @@ data Datatype
   | FloatType
   | StringType
   | List Datatype
+  | MaybeType Datatype
   deriving stock (Show)
 
 newtype SumType = SumType (Map Text (Maybe Datatype))
@@ -47,6 +48,7 @@ parseSumType = fmap (SumType . fold) . traverse parseConstructor . V.toList
 instance FromJSON Datatype where
   parseJSON (Array a) = SumDatatype <$> parseSumType a
   parseJSON (Object o) | [("List", x)] <- HM.toList o = List <$> parseJSON x
+  parseJSON (Object o) | [("Maybe", x)] <- HM.toList o = MaybeType <$> parseJSON x
   parseJSON (Object o) = ProductType <$> traverse parseJSON (M.fromList $ HM.toList o)
   parseJSON (String "Bool") = pure BoolType
   parseJSON (String "Int") = pure IntType
@@ -86,6 +88,20 @@ elmType name (List inner) = do
           }
     ]
   pure $ ETyCon $ ETCon $ toString name <> "_List"
+elmType name (MaybeType inner) = do
+  inner' <- elmType name inner
+  tell
+    [ ETypePrimAlias
+        EPrimAlias
+          { epa_name =
+              ETypeName
+                { et_name = toString name <> "_Maybe",
+                  et_args = []
+                },
+            epa_type = ETyApp (ETyCon (ETCon "Maybe")) inner'
+          }
+    ]
+  pure $ ETyCon $ ETCon $ toString name <> "_Maybe"
 elmType name (ProductType fields) = do
   fields' <- traverse (\(k, v) -> (toString k,) <$> elmType (name <> "_" <> k) v) $ M.toList fields
   tell
@@ -121,7 +137,7 @@ elmType name (SumDatatype (SumType sums)) = do
                     _stcFields = Anonymous $ maybeToList value
                   },
             es_omit_null = False,
-            es_unary_strings = False,
+            es_unary_strings = True,
             es_type =
               SumEncoding'
                 TaggedObject
@@ -157,6 +173,34 @@ psType name (List inner) = do
                       { _typePackage = "builtins",
                         _typeModule = "Prim",
                         _typeName = "Array",
+                        _typeParameters = [inner']
+                      }
+                  ]
+            }
+        ]
+        allInstances
+    ]
+  pure ti
+psType name (MaybeType inner) = do
+  inner' <- psType name inner
+  let ti =
+        TypeInfo
+          { _typePackage = "bridge",
+            _typeModule = "Bridge",
+            _typeName = name <> "_Maybe",
+            _typeParameters = []
+          }
+  tell
+    [ PS.SumType
+        ti
+        [ DataConstructor
+            { _sigConstructor = name <> "_Maybe",
+              _sigValues =
+                Left
+                  [ TypeInfo
+                      { _typePackage = "maybe",
+                        _typeModule = "Data.Maybe",
+                        _typeName = "Maybe",
                         _typeParameters = [inner']
                       }
                   ]
