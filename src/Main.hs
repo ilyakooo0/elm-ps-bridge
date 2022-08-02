@@ -178,7 +178,7 @@ psType name (List inner) = do
                   ]
             }
         ]
-        allInstances
+        (PS.Newtype : allInstances)
     ]
   pure ti
 psType name (MaybeType inner) = do
@@ -206,7 +206,7 @@ psType name (MaybeType inner) = do
                   ]
             }
         ]
-        allInstances
+        (PS.Newtype : allInstances)
     ]
   pure ti
 psType name (SumDatatype (SumType sums)) = do
@@ -253,7 +253,7 @@ psType name (ProductType fields) = do
                       }
             }
         ]
-        allInstances
+        (PS.Newtype : allInstances)
     ]
   pure ti
 
