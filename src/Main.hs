@@ -2,6 +2,7 @@ module Main (main) where
 
 import Control.Monad.Writer.Strict
 import Data.Aeson hiding (Options)
+import Data.Aeson.Types
 import Data.HashMap.Strict qualified as HM
 import Data.Map.Lazy qualified as M
 import Data.Vector (Vector)
@@ -42,15 +43,17 @@ parseSumType :: Vector Value -> Parser SumType
 parseSumType = fmap (SumType . fold) . traverse parseConstructor . V.toList
   where
     parseConstructor (String s) = pure $ one (s, Nothing)
-    parseConstructor (Object o) | [(k, v)] <- HM.toList o = one . (k,) . Just <$> parseJSON v
+    parseConstructor (Object o)
+      | [(k, v)] <- HM.toList o =
+        prependFailure ("in constructor " <> toString k <> ", ") $ one . (k,) . Just <$> parseJSON v
     parseConstructor (Object _) = fail "Sum types can only have one name per constructor"
     parseConstructor _ = fail "Sum Bad sum type ;("
 
 instance FromJSON Datatype where
-  parseJSON (Array a) = SumDatatype <$> parseSumType a
-  parseJSON (Object o) | [("List", x)] <- HM.toList o = List <$> parseJSON x
-  parseJSON (Object o) | [("Maybe", x)] <- HM.toList o = MaybeType <$> parseJSON x
-  parseJSON (Object o) = ProductType <$> traverse parseJSON (M.fromList $ HM.toList o)
+  parseJSON (Array a) = prependFailure "in Sum, " $ SumDatatype <$> parseSumType a
+  parseJSON (Object o) | [("List", x)] <- HM.toList o = prependFailure "in List, " $ List <$> parseJSON x
+  parseJSON (Object o) | [("Maybe", x)] <- HM.toList o = prependFailure "in Maybe, " $ MaybeType <$> parseJSON x
+  parseJSON (Object o) = prependFailure "in Record, " $ ProductType <$> traverse parseJSON (M.fromList $ HM.toList o)
   parseJSON (String "Bool") = pure BoolType
   parseJSON (String "Int") = pure IntType
   parseJSON (String "Float") = pure FloatType
