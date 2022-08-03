@@ -69,6 +69,24 @@ elm datattypes =
   let (_, types) = runWriter $ traverse (uncurry elmType) $ M.toList datattypes
    in makeElmModuleFromETypeDef "Bridge" types
 
+simpleElmAlias :: String -> EType -> Writer [ETypeDef] EType
+simpleElmAlias name inner = do
+  tell
+    [ ETypePrimAlias
+        EPrimAlias
+          { epa_name =
+              ETypeName
+                { et_name = name,
+                  et_args = []
+                },
+            epa_type = inner
+          }
+    ]
+  pure $ ETyCon $ ETCon name
+
+elAp :: String -> EType -> EType
+elAp con inner = ETyApp (ETyCon (ETCon con)) inner
+
 elmType :: Text -> Datatype -> Writer [ETypeDef] EType
 elmType _ BoolType = pure $ ETyCon $ ETCon "Bool"
 elmType _ IntType = pure $ ETyCon $ ETCon "Int"
@@ -76,32 +94,10 @@ elmType _ FloatType = pure $ ETyCon $ ETCon "Float"
 elmType _ StringType = pure $ ETyCon $ ETCon "String"
 elmType name (List inner) = do
   inner' <- elmType name inner
-  tell
-    [ ETypePrimAlias
-        EPrimAlias
-          { epa_name =
-              ETypeName
-                { et_name = toString name <> "_List",
-                  et_args = []
-                },
-            epa_type = ETyApp (ETyCon (ETCon "List")) inner'
-          }
-    ]
-  pure $ ETyCon $ ETCon $ toString name <> "_List"
+  simpleElmAlias (toString name <> "_List") (elAp "List" inner')
 elmType name (MaybeType inner) = do
   inner' <- elmType name inner
-  tell
-    [ ETypePrimAlias
-        EPrimAlias
-          { epa_name =
-              ETypeName
-                { et_name = toString name <> "_Maybe",
-                  et_args = []
-                },
-            epa_type = ETyApp (ETyCon (ETCon "Maybe")) inner'
-          }
-    ]
-  pure $ ETyCon $ ETCon $ toString name <> "_Maybe"
+  simpleElmAlias (toString name <> "_Maybe") (elAp "Maybe" inner')
 elmType name (ProductType fields) = do
   fields' <- traverse (\(k, v) -> (toString k,) <$> elmType (name <> "_" <> k) v) $ M.toList fields
   tell
@@ -148,6 +144,36 @@ elmType name (SumDatatype (SumType sums)) = do
     ]
   pure $ ETyCon $ ETCon $ toString name
 
+simplePSAlias :: Text -> TypeInfo PureScript -> Writer [PS.SumType PureScript] (TypeInfo PureScript)
+simplePSAlias name inner = do
+  let ti =
+        TypeInfo
+          { _typePackage = "bridge",
+            _typeModule = "Bridge",
+            _typeName = name,
+            _typeParameters = []
+          }
+  tell
+    [ PS.SumType
+        ti
+        [ DataConstructor
+            { _sigConstructor = name,
+              _sigValues = Left [inner]
+            }
+        ]
+        (PS.Newtype : allInstances)
+    ]
+  pure ti
+
+psAp :: Text -> Text -> Text -> TypeInfo lang -> TypeInfo lang
+psAp package m t inner =
+  TypeInfo
+    { _typePackage = package,
+      _typeModule = m,
+      _typeName = t,
+      _typeParameters = [inner]
+    }
+
 psType :: Text -> Datatype -> Writer [PS.SumType PureScript] (PS.TypeInfo PureScript)
 psType _ BoolType = pure psBool
 psType _ IntType = pure psInt
@@ -155,60 +181,10 @@ psType _ FloatType = pure psNumber
 psType _ StringType = pure psString
 psType name (List inner) = do
   inner' <- psType name inner
-  let ti =
-        TypeInfo
-          { _typePackage = "bridge",
-            _typeModule = "Bridge",
-            _typeName = name <> "_List",
-            _typeParameters = []
-          }
-  tell
-    [ PS.SumType
-        ti
-        [ DataConstructor
-            { _sigConstructor = name <> "_List",
-              _sigValues =
-                Left
-                  [ TypeInfo
-                      { _typePackage = "builtins",
-                        _typeModule = "Prim",
-                        _typeName = "Array",
-                        _typeParameters = [inner']
-                      }
-                  ]
-            }
-        ]
-        (PS.Newtype : allInstances)
-    ]
-  pure ti
+  simplePSAlias (name <> "_List") (psAp "builtins" "Prim" "Array" inner')
 psType name (MaybeType inner) = do
   inner' <- psType name inner
-  let ti =
-        TypeInfo
-          { _typePackage = "bridge",
-            _typeModule = "Bridge",
-            _typeName = name <> "_Maybe",
-            _typeParameters = []
-          }
-  tell
-    [ PS.SumType
-        ti
-        [ DataConstructor
-            { _sigConstructor = name <> "_Maybe",
-              _sigValues =
-                Left
-                  [ TypeInfo
-                      { _typePackage = "maybe",
-                        _typeModule = "Data.Maybe",
-                        _typeName = "Maybe",
-                        _typeParameters = [inner']
-                      }
-                  ]
-            }
-        ]
-        (PS.Newtype : allInstances)
-    ]
-  pure ti
+  simplePSAlias (name <> "_Maybe") (psAp "maybe" "Data.Maybe" "Maybe" inner')
 psType name (SumDatatype (SumType sums)) = do
   sums' <- traverse (\(k, v) -> (k,) <$> traverse (psType (name <> "_" <> k)) v) $ M.toList sums
   let ti =
