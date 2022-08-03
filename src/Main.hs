@@ -30,6 +30,7 @@ data Datatype
   | IntType
   | FloatType
   | StringType
+  | CustomType Text
   | List Datatype
   | MaybeType Datatype
   deriving stock (Show)
@@ -54,6 +55,7 @@ instance FromJSON Datatype where
   parseJSON (String "Int") = pure IntType
   parseJSON (String "Float") = pure FloatType
   parseJSON (String "String") = pure StringType
+  parseJSON (String t) = pure $ CustomType t
   parseJSON _ = fail "Bad datatype ;("
 
 data Options = Options
@@ -92,6 +94,7 @@ elmType _ BoolType = pure $ ETyCon $ ETCon "Bool"
 elmType _ IntType = pure $ ETyCon $ ETCon "Int"
 elmType _ FloatType = pure $ ETyCon $ ETCon "Float"
 elmType _ StringType = pure $ ETyCon $ ETCon "String"
+elmType _ (CustomType t) = pure $ ETyCon $ ETCon $ toString t
 elmType name (List inner) = do
   inner' <- elmType name inner
   simpleElmAlias (toString name <> "_List") (elAp "List" inner')
@@ -179,6 +182,14 @@ psType _ BoolType = pure psBool
 psType _ IntType = pure psInt
 psType _ FloatType = pure psNumber
 psType _ StringType = pure psString
+psType _ (CustomType t) = do
+  pure
+    TypeInfo
+      { _typePackage = "bridge",
+        _typeModule = "Bridge",
+        _typeName = t,
+        _typeParameters = []
+      }
 psType name (List inner) = do
   inner' <- psType name inner
   simplePSAlias (name <> "_List") (psAp "builtins" "Prim" "Array" inner')
